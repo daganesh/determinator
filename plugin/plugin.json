@@ -1,0 +1,7 @@
+{
+  "name": "determinator",
+  "version": "0.1.0",
+  "description": "Optional convenience wrapper for determinator: bundles the local-LLM MCP workers and a session tier indicator. Tier switching and the escalation slash commands come from the shell installer, NOT this plugin (a plugin cannot set ANTHROPIC_BASE_URL or other shell env). Requires `make install` first.",
+  "author": "determinator contributors",
+  "homepage": "https://github.com/daganesh/determinator"
+}

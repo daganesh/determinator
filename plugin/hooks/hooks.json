@@ -1,0 +1,15 @@
+{
+  "description": "determinator session tier indicator",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[determinator] tier=${DET_TIER:-default} model=${DET_MODEL:-?} backend=${ANTHROPIC_BASE_URL:-anthropic}\""
+          }
+        ]
+      }
+    ]
+  }
+}

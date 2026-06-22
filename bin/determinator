@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# determinator — launch Claude Code on a chosen model tier.
+#
+#   determinator local|cloud|premium [claude args...]   start a session on that tier
+#   determinator which                                  show the ambient tier/model
+#   determinator doctor [args...]                       run the verification engine
+#
+# Each tier just sets backend env vars and exec's the same `claude` binary.
+set -euo pipefail
+
+CFG="${DETERMINATOR_CONFIG_DIR:-$HOME/.config/determinator}"
+HOME_DIR="${DETERMINATOR_HOME:-$HOME/.local/share/determinator}"
+
+if [ ! -f "$CFG/determinator.env" ]; then
+  echo "determinator: config not found at $CFG/determinator.env — run 'make install' first." >&2
+  exit 1
+fi
+# shellcheck source=/dev/null
+. "$CFG/determinator.env"
+
+usage() {
+  echo "usage: determinator {local|cloud|premium|which|doctor} [claude args...]"
+}
+
+cmd="${1:-}"
+[ "$#" -gt 0 ] && shift || true
+
+case "$cmd" in
+  local)   determinator_local;   exec claude --model "$DET_MODEL" "$@" ;;
+  cloud)   determinator_cloud;   exec claude --model "$DET_MODEL" "$@" ;;
+  premium) determinator_premium; exec claude --model "$DET_MODEL" "$@" ;;
+  which)
+    echo "tier=${DET_TIER:-none} model=${DET_MODEL:-?} backend=${ANTHROPIC_BASE_URL:-anthropic-subscription}"
+    ;;
+  doctor)  exec "$HOME_DIR/scripts/doctor.sh" "$@" ;;
+  -h|--help|"") usage ;;
+  *) echo "determinator: unknown command '$cmd'" >&2; usage >&2; exit 2 ;;
+esac
