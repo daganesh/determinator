@@ -6,9 +6,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/lib.sh"
 HOME_DIR="${DETERMINATOR_HOME:-$HOME/.local/share/determinator}"
 CFG="${DETERMINATOR_CONFIG_DIR:-$HOME/.config/determinator}"
+# Use the 'local' tier's model as the free worker model (fall back if unset).
 # shellcheck source=/dev/null
-[ -f "$CFG/models.conf" ] && . "$CFG/models.conf"
-WORKER_MODEL="${DET_LOCAL_MODEL:-llama3.1:8b}"
+[ -f "$CFG/determinator.conf" ] && . "$CFG/determinator.conf"
+WORKER_MODEL="${DET_TIER_local_MODEL:-llama3.1:8b}"
 SERVER="$HOME_DIR/mcp/local_workers/server.py"
 
 if ! have claude; then warn "claude not found; skipping MCP registration"; exit 0; fi

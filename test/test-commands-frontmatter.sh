@@ -16,8 +16,13 @@ for f in sorted(root.glob("*.md")):
     keys = dict(re.findall(r"^([\w-]+):\s*(.*)$", m.group(1), re.M))
     if "description" not in keys:
         print(f"FAIL {f.name}: missing description"); ok = False; continue
-    if f.name in {"plan.md", "code-task.md", "review-tests.md"} and keys.get("disable-model-invocation", "").strip() != "true":
-        print(f"FAIL {f.name}: escalation command must set disable-model-invocation: true"); ok = False; continue
+    # Escalation commands must be model-invocable (so natural language triggers them)
+    # and must route through determinator-escalate.
+    if f.name in {"plan.md", "code-task.md", "review-tests.md"}:
+        if keys.get("disable-model-invocation", "").strip() == "true":
+            print(f"FAIL {f.name}: escalation command must stay model-invocable (drop disable-model-invocation)"); ok = False; continue
+        if "determinator-escalate" not in text:
+            print(f"FAIL {f.name}: escalation command must call determinator-escalate"); ok = False; continue
     print(f"ok {f.name}")
 sys.exit(0 if ok else 1)
 PY

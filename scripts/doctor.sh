@@ -6,6 +6,8 @@ set -uo pipefail   # NOT -e: we run every check and summarize
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 . "$HERE/lib.sh"
+# shellcheck source=tierlib.sh
+. "$HERE/tierlib.sh"
 REPO="$(cd "$HERE/.." && pwd)"
 HOME_DIR="${DETERMINATOR_HOME:-$HOME/.local/share/determinator}"
 CFG="${DETERMINATOR_CONFIG_DIR:-$HOME/.config/determinator}"
@@ -28,8 +30,8 @@ for t in claude python3 jq; do have "$t" && row ok "$t" "$(command -v "$t")" || 
 have ollama && row ok "ollama" "$(command -v ollama)" || row no "ollama" "missing (needed for local/cloud tiers)"
 
 echo "-- structure --"
-[ -f "$CFG/determinator.env" ] && row ok "config env" "$CFG/determinator.env" || row no "config env" "run make install"
-[ -f "$CFG/models.conf" ] && row ok "models.conf" || row no "models.conf"
+config_ok=0
+if [ -f "$CFG/determinator.conf" ]; then row ok "config" "$CFG/determinator.conf"; config_ok=1; else row no "config" "run make install"; fi
 [ -f "$BASE/mcp/local_workers/server.py" ] && row ok "mcp server file" || row no "mcp server file"
 
 # MCP protocol ping (offline)
@@ -58,30 +60,33 @@ if have jq && [ -f "$CLAUDE_DIR/settings.json" ]; then
     && row ok "permissions" || row no "permissions" "run scripts/set-permissions.sh"
 else row skip "permissions" "need jq + settings.json"; fi
 
-if [ $QUICK = 1 ]; then
-  echo "-- tiers: skipped (quick) --"
+# Load config so we can enumerate tiers.
+[ "$config_ok" = 1 ] && det_load_config 2>/dev/null
+
+echo "-- tiers (configured: ${DET_TIERS:-none}) --"
+if [ "$config_ok" != 1 ]; then
+  row skip "tiers" "no config"
+elif [ $QUICK = 1 ]; then
+  for t in ${DET_TIERS:-}; do
+    det_resolve_tier "$t" && row ok "tier: $t" "$DET_R_BACKEND / $DET_R_MODEL" || row no "tier: $t" "missing model/backend"
+  done
+  echo "  (live smoke tests skipped — quick mode)"
+elif ! have claude; then
+  row skip "tiers" "claude not found"
 else
-  echo "-- tiers (live smoke) --"
-  if ! have claude; then
-    row skip "tiers" "claude not found"
-  else
-    smoke() { # smoke fn LABEL
-      # shellcheck source=/dev/null
-      [ -f "$CFG/determinator.env" ] && . "$CFG/determinator.env" 2>/dev/null
-      "$1" 2>/dev/null
-      local out
-      out="$(claude -p 'reply with the single word: ok' --model "${DET_MODEL:-}" --output-format json 2>/dev/null)"
-      if echo "$out" | grep -qiE '"result"|(^|[^a-z])ok([^a-z]|$)'; then row ok "$2" "${DET_MODEL:-?}"; else row no "$2" "no reply from ${DET_MODEL:-?}"; fi
-    }
-    curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1 && row ok "ollama daemon" || row no "ollama daemon" "not reachable (local/cloud will fail)"
-    smoke determinator_local   "tier: local"
-    smoke determinator_cloud   "tier: cloud"
-    smoke determinator_premium "tier: premium"
-    # escalation end-to-end
-    if "$BASE/bin/determinator-escalate" plan "reply with the single word: ok" >/dev/null 2>&1; then
-      row ok "escalation" "plan returned"
-    else row no "escalation" "determinator-escalate plan failed"; fi
-  fi
+  command -v curl >/dev/null 2>&1 && curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1 \
+    && row ok "ollama daemon" || row no "ollama daemon" "not reachable (local/cloud will fail)"
+  for t in ${DET_TIERS:-}; do
+    if ! det_resolve_tier "$t"; then row no "tier: $t" "unresolved"; continue; fi
+    ( det_apply_backend "$DET_R_BACKEND"
+      out="$(claude -p 'reply with the single word: ok' --model "$DET_R_MODEL" --output-format json 2>/dev/null)"
+      echo "$out" | grep -qiE '"result"|(^|[^a-z])ok([^a-z]|$)' ) \
+      && row ok "tier: $t" "$DET_R_MODEL" || row no "tier: $t" "no reply from $DET_R_MODEL"
+  done
+  # escalation end-to-end (uses the plan tier)
+  if "$BASE/bin/determinator-escalate" plan "reply with the single word: ok" >/dev/null 2>&1; then
+    row ok "escalation" "plan returned"
+  else row no "escalation" "determinator-escalate plan failed"; fi
 fi
 
 echo

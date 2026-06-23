@@ -1,9 +1,8 @@
 ---
-description: Escalate to premium Claude (headless) to implement a scoped coding task.
+description: Implement a scoped coding task. Use when the user asks to implement, build, or write code for a specific change ("code this", "implement the plan"). Runs on the configured coding tier (balanced by default).
 argument-hint: <task to implement>
 allowed-tools: Bash(determinator-escalate:*)
-disable-model-invocation: true
 ---
-Premium implementation of: **$ARGUMENTS**
+Implementing: **$ARGUMENTS**
 
 !`determinator-escalate code-task "$ARGUMENTS"`

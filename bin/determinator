@@ -1,38 +1,59 @@
 #!/usr/bin/env bash
-# determinator — launch Claude Code on a chosen model tier.
+# determinator — launch Claude Code on a configured model tier.
 #
-#   determinator local|cloud|premium [claude args...]   start a session on that tier
-#   determinator which                                  show the ambient tier/model
-#   determinator doctor [args...]                       run the verification engine
+#   determinator <tier> [claude args...]   start a session on that tier
+#   determinator                            start on the default tier (DET_DEFAULT_TIER)
+#   determinator list                       show configured tiers
+#   determinator which                      show the ambient tier/model
+#   determinator doctor [args...]           run the verification engine
 #
-# Each tier just sets backend env vars and exec's the same `claude` binary.
+# Tiers are defined in ~/.config/determinator/determinator.conf, not in this code.
 set -euo pipefail
 
-CFG="${DETERMINATOR_CONFIG_DIR:-$HOME/.config/determinator}"
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOME_DIR="${DETERMINATOR_HOME:-$HOME/.local/share/determinator}"
-
-if [ ! -f "$CFG/determinator.env" ]; then
-  echo "determinator: config not found at $CFG/determinator.env — run 'make install' first." >&2
-  exit 1
-fi
-# shellcheck source=/dev/null
-. "$CFG/determinator.env"
+# shellcheck source=../scripts/tierlib.sh
+. "$SELF_DIR/../scripts/tierlib.sh"
+det_load_config
 
 usage() {
-  echo "usage: determinator {local|cloud|premium|which|doctor} [claude args...]"
+  echo "usage: determinator <tier|list|which|doctor> [claude args...]"
+  echo "tiers: ${DET_TIERS:-<none configured>}"
+}
+
+launch() {
+  local t="$1"; shift
+  if ! det_resolve_tier "$t"; then
+    echo "determinator: unknown tier '$t' (configured: ${DET_TIERS:-none})" >&2
+    exit 2
+  fi
+  det_apply_backend "$DET_R_BACKEND"
+  export DET_TIER="$t" DET_MODEL="$DET_R_MODEL"
+  exec claude --model "$DET_R_MODEL" "$@"
 }
 
 cmd="${1:-}"
 [ "$#" -gt 0 ] && shift || true
 
 case "$cmd" in
-  local)   determinator_local;   exec claude --model "$DET_MODEL" "$@" ;;
-  cloud)   determinator_cloud;   exec claude --model "$DET_MODEL" "$@" ;;
-  premium) determinator_premium; exec claude --model "$DET_MODEL" "$@" ;;
+  list)
+    for t in ${DET_TIERS:-}; do
+      det_resolve_tier "$t" && printf '  %-12s %-10s %s\n' "$t" "$DET_R_BACKEND" "$DET_R_MODEL"
+    done
+    ;;
   which)
     echo "tier=${DET_TIER:-none} model=${DET_MODEL:-?} backend=${ANTHROPIC_BASE_URL:-anthropic-subscription}"
     ;;
-  doctor)  exec "$HOME_DIR/scripts/doctor.sh" "$@" ;;
-  -h|--help|"") usage ;;
-  *) echo "determinator: unknown command '$cmd'" >&2; usage >&2; exit 2 ;;
+  doctor)
+    exec "$HOME_DIR/scripts/doctor.sh" "$@"
+    ;;
+  -h | --help)
+    usage
+    ;;
+  "")
+    launch "${DET_DEFAULT_TIER:-local}"
+    ;;
+  *)
+    launch "$cmd" "$@"
+    ;;
 esac

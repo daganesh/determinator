@@ -2,7 +2,7 @@
 
 Decide where work runs. Default to the cheapest tier that can do the job; escalate the hard step.
 
-## Keep on the local/cloud tier
+## Keep on the local/balanced tier
 - Status questions: "what changed?", "are tests passing?", "summarize this diff"
 - Running things: tests, builds, git, grep/find, file reads
 - Drafting commit messages and triaging logs → use the local MCP tools

@@ -12,27 +12,35 @@ specific high-value jobs to premium Claude — surgically, one call at a time.
 > Built on the [Ollama → Claude Code integration](https://docs.ollama.com/integrations/claude-code):
 > all three tiers are the **same `claude` binary**; only the backend changes via environment variables.
 
-## The three tiers
+## The tiers (configurable)
+
+Tiers are defined in `~/.config/determinator/determinator.conf` — rename them, change their
+models, or add your own. The defaults are a cheap → capable ladder:
 
 | Tier | Backend | Cost | Use for |
 |---|---|---|---|
-| **local** | Claude Code → local Ollama (`localhost:11434`) | free, on-machine | exploration, summaries, status, running tests/git |
-| **cloud** | Claude Code → Ollama `:cloud` model | cheap | same, when local RAM is the limit |
-| **premium** | Claude Code → Anthropic via your **Claude subscription** (OAuth); API key optional | subscription (no metered API) | planning, coding, test review |
+| **local** | local Ollama (`localhost:11434`) | free, on-machine | exploration, summaries, status, running tests/git |
+| **balanced** | Ollama `:cloud` model | cheap | the everyday workhorse; coding when local RAM is the limit |
+| **reasoning** | Anthropic via your **Claude subscription** (OAuth); API key optional | subscription (no metered API) | planning, hard reasoning, test review |
+
+A *tier* is just a name pointing at a `{model, backend}`. The three **backends** (`local`,
+`cloud`, `anthropic`) are the fixed plumbing; tiers are your labels on top.
 
 ```bash
 determinator local            # start a session on the free local model (alias: dt local)
-determinator premium          # start a session on your Claude subscription
+determinator reasoning        # start a session on your Claude subscription
+determinator list             # show configured tiers
 determinator which            # show the active tier/model
 ```
 
-From inside a cheap session, escalate just the hard step to premium — without paying premium
-for the whole session:
+From inside a cheap session, escalate just the hard step — without paying for the whole
+session. Use a slash command **or** plain language ("plan this feature" works too); each maps
+to its configured tier (planning → reasoning, coding → balanced):
 
 ```
-/plan add a retry with backoff to the http client     # headless premium planner (read-only)
-/code-task implement the plan in client.py            # headless premium implementer
-/review-tests                                          # headless premium test review
+/plan add a retry with backoff to the http client     # → reasoning tier, read-only planner
+/code-task implement the plan in client.py            # → balanced tier, implementer
+/review-tests                                          # → reasoning tier, test review
 ```
 
 Local-LLM **MCP workers** (`summarize_diff`, `gen_commit_msg`, `triage_log`) run on the free

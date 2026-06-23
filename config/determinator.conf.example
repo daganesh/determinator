@@ -1,0 +1,30 @@
+# determinator configuration — edit freely, then re-run `make install` (or copy to
+# ~/.config/determinator/determinator.conf). This is plain shell data, no logic.
+#
+# A TIER is a name you launch with `determinator <tier>`. Each tier = a model + a backend.
+# BACKENDS are the fixed primitives the engine knows how to wire:
+#   local      → Ollama on this machine            (free, private, offline)
+#   cloud      → Ollama's rented ":cloud" models    (cheap; needs a one-time `ollama signin`)
+#   anthropic  → your Claude subscription           (or an opt-in API key in secrets.env)
+#
+# Tiers point at a backend, so you can rename/add/remove tiers without touching code.
+
+# ---- The tiers you can launch (space-separated, cheapest → most capable) ----
+DET_TIERS="local balanced reasoning"
+
+# ---- Each tier's model + backend.  Pattern: DET_TIER_<name>_MODEL / _BACKEND ----
+DET_TIER_local_MODEL="llama3.1:8b";               DET_TIER_local_BACKEND="local"
+DET_TIER_balanced_MODEL="qwen3-coder:480b-cloud"; DET_TIER_balanced_BACKEND="cloud"
+DET_TIER_reasoning_MODEL="claude-opus-4-8";       DET_TIER_reasoning_BACKEND="anthropic"
+
+# ---- Which tier each task/agent runs on. Change these to re-route work. ----
+DET_PLAN_TIER="reasoning"      # /plan  ("plan this feature")
+DET_CODE_TIER="balanced"       # /code-task
+DET_REVIEW_TIER="reasoning"    # /review-tests
+
+# ---- The tier used when you run `determinator` with no tier name ----
+DET_DEFAULT_TIER="local"
+
+# ---- Example: add your own tiers ----
+# DET_TIERS="fast local balanced reasoning"
+# DET_TIER_fast_MODEL="qwen2.5:3b";  DET_TIER_fast_BACKEND="local"

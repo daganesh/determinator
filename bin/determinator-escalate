@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
-# determinator-escalate — run ONE premium Claude Code job headlessly, from inside a
-# cheap-tier session, without making the whole session premium.
+# determinator-escalate — run ONE headless Claude Code job on a chosen tier, from inside
+# another session, without changing that session's tier.
 #
-#   determinator-escalate plan         <task...>   read-only premium planner
-#   determinator-escalate code-task    <task...>   premium implementer (can edit)
-#   determinator-escalate review-tests <task...>   premium test reviewer
+#   determinator-escalate [--tier <name>] <plan|code-task|review-tests> <task...>
 #
-# It forces the premium backend (subscription OAuth by default), isolating the call
-# from whatever backend the parent (local/cloud) session is using.
+# Each mode has a default tier (DET_PLAN_TIER / DET_CODE_TIER / DET_REVIEW_TIER in the
+# config); --tier overrides it. The job's backend is wired in an isolated subprocess so it
+# can't inherit the parent session's backend or accidentally switch billing.
 set -euo pipefail
 
-CFG="${DETERMINATOR_CONFIG_DIR:-$HOME/.config/determinator}"
-if [ ! -f "$CFG/determinator.env" ]; then
-  echo "determinator-escalate: config not found at $CFG/determinator.env — run 'make install' first." >&2
-  exit 1
-fi
-# shellcheck source=/dev/null
-. "$CFG/determinator.env"
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=../scripts/tierlib.sh
+. "$SELF_DIR/../scripts/tierlib.sh"
+det_load_config
+
+TIER_OVERRIDE=""
+if [ "${1:-}" = "--tier" ]; then TIER_OVERRIDE="${2:-}"; shift 2; fi
 
 mode="${1:-}"
 [ "$#" -gt 0 ] && shift || true
@@ -25,33 +24,32 @@ task="$*"
 case "$mode" in
   plan)
     sys="You are a senior software architect. Produce a concrete, step-by-step implementation plan for the request: name the files to change and the approach, and call out risks. Do NOT write code or edit files."
-    tools="Read,Grep,Glob,Bash" ;;
+    tools="Read,Grep,Glob,Bash"
+    def_tier="${DET_PLAN_TIER:-reasoning}" ;;
   code-task)
     sys="Implement the requested, scoped task with minimal, correct edits that follow the surrounding code's conventions. Do not refactor beyond what is needed."
-    tools="Read,Edit,Write,Grep,Glob,Bash" ;;
+    tools="Read,Edit,Write,Grep,Glob,Bash"
+    def_tier="${DET_CODE_TIER:-balanced}" ;;
   review-tests)
     sys="Review the test suite for the current change. Report coverage gaps and add or strengthen missing tests. Prefer the project's existing test style."
-    tools="Read,Edit,Grep,Glob,Bash" ;;
+    tools="Read,Edit,Grep,Glob,Bash"
+    def_tier="${DET_REVIEW_TIER:-reasoning}" ;;
   *)
-    echo "usage: determinator-escalate {plan|code-task|review-tests} <task...>" >&2
+    echo "usage: determinator-escalate [--tier <name>] {plan|code-task|review-tests} <task...>" >&2
     exit 2 ;;
 esac
 
-if [ -z "$task" ]; then
-  echo "determinator-escalate: empty task" >&2
+[ -n "$task" ] || { echo "determinator-escalate: empty task" >&2; exit 2; }
+
+tier="${TIER_OVERRIDE:-$def_tier}"
+if ! det_resolve_tier "$tier"; then
+  echo "determinator-escalate: unknown tier '$tier' (configured: ${DET_TIERS:-none})" >&2
   exit 2
 fi
-
-# Force the premium backend. determinator_premium normalizes THIS process's env:
-# it unsets ANTHROPIC_BASE_URL/AUTH_TOKEN/API_KEY (clearing any cheap-tier values
-# inherited from the parent session), then sources secrets.env, which re-sets
-# ANTHROPIC_API_KEY only if the user opted into metered API mode. So after this
-# call the env is already correct for both subscription-OAuth and API-key modes —
-# no fragile `env -u` ordering needed (BSD env requires -u before NAME=value).
-determinator_premium
+det_apply_backend "$DET_R_BACKEND"
 
 exec claude -p "$task" \
-  --model "${DET_PREMIUM_MODEL:-claude-opus-4-8}" \
+  --model "$DET_R_MODEL" \
   --append-system-prompt "$sys" \
   --allowedTools "$tools" \
   --output-format text
