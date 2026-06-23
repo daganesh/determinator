@@ -2,13 +2,13 @@
 
 From inside a cheap (local/balanced) session you can run one job on a stronger tier without
 making the whole session expensive. Trigger by slash command **or** plain language — the
-commands are model-invocable, so "plan this feature" maps to `/plan`.
+commands are model-invocable, so "plan this feature" maps to `/dt-plan`.
 
 | Command / intent | Runs on (configurable) | Premium does | Tools it gets |
 |---|---|---|---|
-| `/plan`, "plan this…" | `DET_PLAN_TIER` (reasoning) | a read-only implementation plan | Read, Grep, Glob, Bash |
-| `/code-task`, "implement…" | `DET_CODE_TIER` (balanced) | implements a scoped change | Read, Edit, Write, Grep, Glob, Bash |
-| `/review-tests`, "review the tests" | `DET_REVIEW_TIER` (reasoning) | reviews/strengthens tests | Read, Edit, Grep, Glob, Bash |
+| `/dt-plan`, "plan this…" | `DET_PLAN_TIER` (reasoning) | a read-only implementation plan | Read, Grep, Glob, Bash |
+| `/dt-code-task`, "implement…" | `DET_CODE_TIER` (balanced) | implements a scoped change | Read, Edit, Write, Grep, Glob, Bash |
+| `/dt-review-tests`, "review the tests" | `DET_REVIEW_TIER` (reasoning) | reviews/strengthens tests | Read, Edit, Grep, Glob, Bash |
 
 ## How it works
 
@@ -24,7 +24,7 @@ override). That helper:
 The escalated process is **separate** from your session: it sees the task text you pass plus
 the repo on disk (Read/Grep/Glob), not your session's live conversation. Ground tasks in the
 files; for chained steps, pass state via a file (e.g. write `PLAN.md`, then
-`/code-task implement PLAN.md`).
+`/dt-code-task implement PLAN.md`).
 
 ## Large inputs
 

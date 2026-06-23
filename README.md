@@ -38,14 +38,14 @@ session. Use a slash command **or** plain language ("plan this feature" works to
 to its configured tier (planning → reasoning, coding → balanced):
 
 ```
-/plan add a retry with backoff to the http client     # → reasoning tier, read-only planner
-/code-task implement the plan in client.py            # → balanced tier, implementer
-/review-tests                                          # → reasoning tier, test review
+/dt-plan add a retry with backoff to the http client     # → reasoning tier, read-only planner
+/dt-code-task implement the plan in client.py            # → balanced tier, implementer
+/dt-review-tests                                          # → reasoning tier, test review
 ```
 
 Local-LLM **MCP workers** (`summarize_diff`, `gen_commit_msg`, `triage_log`) run on the free
 model even inside a premium session, so cheap language tasks never cost premium tokens.
-`/insights` analyzes your own usage so you can tune which work goes where.
+`/dt-insights` analyzes your own usage so you can tune which work goes where.
 
 ## Install
 
@@ -76,14 +76,14 @@ value is making **escalation** cheap and explicit, not replacing premium for har
 - `bin/determinator`, `bin/determinator-escalate` — the tier launcher and the premium escalation isolator
 - `install.sh` + `Makefile` + `scripts/` — idempotent installer/uninstaller/doctor
 - `mcp/local_workers/` — stdio MCP server exposing 3 Ollama-backed tools
-- `claude/commands/` — `/plan`, `/code-task`, `/review-tests`, `/insights`, `/test`, `/status`, `/commit-push`
+- `claude/commands/` — `/dt-plan`, `/dt-code-task`, `/dt-review-tests`, `/dt-insights`, `/dt-test`, `/dt-status`, `/dt-commit-push`
 - `analytics/` — `analyze_sessions.py` usage analyzer (+ a sanitized sample)
 - `agents/` — starter `.agents/` knowledge base on when to use which tier
 - `plugin/` — optional Claude Code plugin wrapper (convenience only; cannot switch tiers)
 
 ## Prior art
 
-Routing here is **manual by design** — you pick the tier; `/plan` etc. escalate. If automatic
+Routing here is **manual by design** — you pick the tier; `/dt-plan` etc. escalate. If automatic
 difficulty-based routing is ever wanted, [maslul](https://github.com/iliatankelevich/maslul)
 is the reference (`verify_cascade`, `bypass_predicate`) — but it is a Python library for routing
 *cloud API calls*, not Claude Code, so it is cited as prior art only, **not a dependency**.

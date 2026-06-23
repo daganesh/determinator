@@ -18,7 +18,7 @@ for f in sorted(root.glob("*.md")):
         print(f"FAIL {f.name}: missing description"); ok = False; continue
     # Escalation commands must be model-invocable (so natural language triggers them)
     # and must route through determinator-escalate.
-    if f.name in {"plan.md", "code-task.md", "review-tests.md"}:
+    if f.name in {"dt-plan.md", "dt-code-task.md", "dt-review-tests.md"}:
         if keys.get("disable-model-invocation", "").strip() == "true":
             print(f"FAIL {f.name}: escalation command must stay model-invocable (drop disable-model-invocation)"); ok = False; continue
         if "determinator-escalate" not in text:

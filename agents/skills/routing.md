@@ -8,7 +8,7 @@ Decide where work runs. Default to the cheapest tier that can do the job; escala
 - Drafting commit messages and triaging logs → use the local MCP tools
   (`gen_commit_msg`, `summarize_diff`, `triage_log`) even from a premium session
 
-## Escalate to premium (`/plan`, `/code-task`, `/review-tests`)
+## Escalate to premium (`/dt-plan`, `/dt-code-task`, `/dt-review-tests`)
 - Designing a change across multiple files or systems
 - Non-trivial implementation that needs real reasoning or care
 - Reviewing tests for correctness/coverage gaps
