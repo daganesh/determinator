@@ -66,7 +66,7 @@ def analyze(files: list[str]) -> dict:
     slash_cmds: Counter = Counter()
     prompts: list[str] = []
     sessions: set = set()
-    totals = {"assistant_msgs": 0, "output_tokens": 0, "cache_read": 0, "cache_creation": 0}
+    totals = {"assistant_msgs": 0, "output_tokens": 0, "input": 0, "cache_read": 0, "cache_creation": 0}
 
     for f in files:
         try:
@@ -89,6 +89,7 @@ def analyze(files: list[str]) -> dict:
                     usage = m.get("usage") or {}
                     ot = usage.get("output_tokens", 0)
                     totals["output_tokens"] += ot
+                    totals["input"] += usage.get("input_tokens", 0)
                     totals["cache_read"] += usage.get("cache_read_input_tokens", 0)
                     totals["cache_creation"] += usage.get("cache_creation_input_tokens", 0)
                     for b in (m.get("content") or []):
@@ -137,15 +138,54 @@ def show(title: str, counter: Counter, n: int) -> None:
         print(f"{v:6d}  {k}")
 
 
-def report(a: dict, top: int) -> None:
+# Anthropic prompt-cache price multipliers vs normal (uncached) input.
+# VERIFY against current pricing — these are the documented defaults, not gospel.
+CACHE_READ_MULT = 0.10    # a cache hit costs ~10% of a fresh input token
+CACHE_WRITE_MULT = 1.25   # writing to cache costs ~25% extra
+
+
+def cache_stats(t: dict) -> dict:
+    """Cache efficiency, computed from actuals (no routing assumptions)."""
+    read = t["cache_read"]
+    write = t["cache_creation"]
+    fresh = t["input"]
+    context_total = read + write + fresh            # all "input-side" tokens
+    hit_rate = read / context_total if context_total else 0.0
+    # Savings vs the SAME session with caching off (every cached token -> full-price input):
+    #   each read saves (1 - 0.10); each write costs an extra (1.25 - 1).
+    saved_equiv = (1 - CACHE_READ_MULT) * read - (CACHE_WRITE_MULT - 1) * write
+    nocache_equiv = context_total                   # baseline: all at 1.0x
+    return {
+        "read": read, "write": write, "fresh": fresh, "context_total": context_total,
+        "hit_rate": hit_rate, "saved_equiv": saved_equiv, "nocache_equiv": nocache_equiv,
+        "saved_pct": (saved_equiv / nocache_equiv) if nocache_equiv else 0.0,
+    }
+
+
+def report(a: dict, top: int, price_per_mtok: float | None = None) -> None:
     t = a["totals"]
     print(f"Files analyzed:           {a['files']}")
     print(f"Distinct sessions:        {a['sessions']}")
     print(f"Assistant messages:       {t['assistant_msgs']}")
     print(f"Total tool calls:         {sum(a['tool_counts'].values())}")
     print(f"Output tokens:            {t['output_tokens']:,}")
-    print(f"Cache read tokens:        {t['cache_read']:,}")
     print(f"Human prompts captured:   {len(a['prompts'])}")
+
+    c = cache_stats(t)
+    print("\n===== CACHE EFFICIENCY (computed from actuals) =====")
+    print(f"Context tokens (read+write+fresh): {c['context_total']:,}")
+    print(f"  cache read (hits, ~0.10x):       {c['read']:,}")
+    print(f"  cache write (~1.25x):            {c['write']:,}")
+    print(f"  fresh uncached (1.0x):           {c['fresh']:,}")
+    print(f"Cache HIT RATE:                    {c['hit_rate']*100:.1f}%")
+    print(f"Saved vs no-cache:                 {c['saved_equiv']:,.0f} input-token-equiv "
+          f"({c['saved_pct']*100:.1f}% of input-side cost)")
+    if c["saved_equiv"] < 0:
+        print("  ⚠ NEGATIVE — context is too churny; cache writes aren't being reused. "
+              "Keep context stable (fewer fresh sessions / less re-reading).")
+    if price_per_mtok is not None:
+        print(f"Est. cache savings:                ${c['saved_equiv']/1_000_000*price_per_mtok:,.2f} "
+              f"(at ${price_per_mtok:.2f}/M input tokens — your rate)")
     show("TOOL USAGE", a["tool_counts"], top)
     print("\n===== TOOL OUTPUT-TOKEN COST =====")
     for k, v in sorted(a["tool_output_tokens"].items(), key=lambda x: -x[1])[:top]:
@@ -165,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--top", type=int, default=25, help="Top-N rows per category (default: 25)")
     p.add_argument("--json", action="store_true", help="Emit raw aggregates as JSON instead of a report")
     p.add_argument("--dump-prompts", metavar="FILE", help="Write captured human prompts to FILE (one per line)")
+    p.add_argument("--price", type=float, metavar="USD_PER_MTOK",
+                   help="Your $/million input tokens — turns cache savings into a dollar estimate (you supply the rate)")
     p.add_argument("--dry-run", action="store_true", help="List the files that would be analyzed, then exit")
     args = p.parse_args(argv)
 
@@ -187,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
                         for k, v in a.items() if k != "prompts"}
         print(json.dumps(serializable, indent=2))
     else:
-        report(a, args.top)
+        report(a, args.top, price_per_mtok=args.price)
     return 0
 
 
