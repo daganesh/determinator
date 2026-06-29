@@ -14,8 +14,8 @@ returns its result into the same session. No separate process, context preserved
 - Trade-off: a subagent **cannot cross backends**. `ANTHROPIC_BASE_URL` is process-global, so
   this only switches *tiers within Anthropic* (haiku/sonnet/opus). It can't reach Anthropic
   from a local Ollama session.
-- Full context: a subagent starts fresh by default; the parent decides what context to pass.
-  (`CLAUDE_CODE_FORK_SUBAGENT=1` makes subagents inherit the full conversation — advanced.)
+- Context: a subagent starts fresh by default; the parent passes only the relevant slice
+  (see "How much context to send" below). This is the cheap, default behavior.
 
 ## Paradigm 2 — Process (separate `claude -p`, crosses backends)
 
@@ -37,3 +37,24 @@ process wired to the target tier's backend (default the reasoning tier; `--tier`
 | local / cloud (Ollama) | Process (`determinator-escalate`) | only way to cross into Anthropic |
 
 The commands run `determinator which` first and branch automatically.
+
+## How much context to send (this is where cost lives)
+
+The dominant cost of an escalation is **input tokens** — how much the stronger model has to
+read. So escalation has three context levels; **default to the cheapest that does the job.**
+
+| Level | What the premium model receives | Cost | Use when |
+|---|---|---|---|
+| **Task only** | the task string + repo-on-disk access (Read/Grep/Glob) | cheapest | most escalations — the work is grounded in files |
+| **Task + curated context** ← *default* | task + the relevant slice the parent selects (specific files, recent decisions, constraints) | low | the task depends on recent conversation, not just files |
+| **Task + full fork** (`--fork`) | the **entire** conversation transcript | **highest** | rare — work deeply entangled with the whole conversation, cost accepted |
+
+**`--fork` is an opt-in, never the default.** Forking copies the full transcript into the
+premium model's context, so on a long session it makes every escalation the most expensive
+call possible — the opposite of the cost goal. Reach for it only when curated context genuinely
+can't capture what's needed, and accept the bill.
+
+> Planned (not yet built): a **summarized-context** handoff — use the free local model to
+> compress the conversation to a short digest, then pass that to the premium subagent. Most of
+> fork's fidelity at a fraction of the cost (the "keep context lean" lever, applied with a $0 model).
+
