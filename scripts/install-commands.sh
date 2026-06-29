@@ -18,6 +18,17 @@ for f in "$REPO/claude/commands/"*.md; do
 done
 log "installed slash commands → $CLAUDE_DIR/commands"
 
+# Subagent definitions (Paradigm 1: in-context, same-backend escalation).
+if ls "$REPO/claude/agents/"*.md >/dev/null 2>&1; then
+  mkdir -p "$CLAUDE_DIR/agents"
+  for f in "$REPO/claude/agents/"*.md; do
+    dest="$CLAUDE_DIR/agents/$(basename "$f")"
+    if [ -f "$dest" ] && ! cmp -s "$f" "$dest"; then backup_file "$dest"; fi
+    cp "$f" "$dest"
+  done
+  log "installed subagents → $CLAUDE_DIR/agents"
+fi
+
 # Optional skill mirrors (only if any SKILL.md exists).
 if ls "$REPO/claude/skills/"*/SKILL.md >/dev/null 2>&1; then
   mkdir -p "$CLAUDE_DIR/skills"

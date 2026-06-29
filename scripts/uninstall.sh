@@ -26,6 +26,17 @@ if [ -d "$HOME_DIR/claude/commands" ]; then
   log "removed slash commands"
 fi
 
+# 3b. subagent definitions (restore any .det.bak collisions)
+if [ -d "$HOME_DIR/claude/agents" ]; then
+  for f in "$HOME_DIR/claude/agents/"*.md; do
+    [ -e "$f" ] || continue
+    dest="$CLAUDE_DIR/agents/$(basename "$f")"
+    rm -f "$dest"
+    [ -f "$dest.det.bak" ] && mv "$dest.det.bak" "$dest"
+  done
+  log "removed subagents"
+fi
+
 # 4. permissions: jq-remove only our entries
 settings="$CLAUDE_DIR/settings.json"
 if [ -f "$settings" ] && have jq; then
