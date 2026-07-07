@@ -48,7 +48,12 @@ if ! det_resolve_tier "$tier"; then
 fi
 det_apply_backend "$DET_R_BACKEND"
 
-exec claude -p "$task" \
+claude_bin="${DET_CLAUDE_BIN:-claude}"
+command -v "$claude_bin" >/dev/null 2>&1 || {
+  echo "determinator-escalate: '$claude_bin' not found on PATH. Set DET_CLAUDE_BIN to its path." >&2
+  exit 1
+}
+exec "$claude_bin" -p "$task" \
   --model "$DET_R_MODEL" \
   --append-system-prompt "$sys" \
   --allowedTools "$tools" \

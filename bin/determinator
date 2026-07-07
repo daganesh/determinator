@@ -28,8 +28,13 @@ launch() {
     exit 2
   fi
   det_apply_backend "$DET_R_BACKEND"
+  local claude_bin="${DET_CLAUDE_BIN:-claude}"
+  if ! command -v "$claude_bin" >/dev/null 2>&1; then
+    echo "determinator: '$claude_bin' not found on PATH. Install Claude Code, or set DET_CLAUDE_BIN to its path." >&2
+    exit 1
+  fi
   export DET_TIER="$t" DET_MODEL="$DET_R_MODEL"
-  exec claude --model "$DET_R_MODEL" "$@"
+  exec "$claude_bin" --model "$DET_R_MODEL" "$@"
 }
 
 cmd="${1:-}"

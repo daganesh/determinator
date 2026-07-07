@@ -23,6 +23,24 @@ backup_file() {
   [ -f "$1.det.bak" ] || cp "$1" "$1.det.bak"
 }
 
+# Ensure the Ollama daemon is reachable; try to start it, then wait. 0 if up, 1 otherwise.
+ensure_ollama_daemon() {
+  have ollama || return 1
+  have curl || { warn "curl not found; cannot check Ollama daemon"; return 1; }
+  curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1 && return 0
+  log "starting the Ollama daemon…"
+  if have brew && brew services start ollama >/dev/null 2>&1; then :; else
+    nohup ollama serve >/dev/null 2>&1 &
+  fi
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1 && { log "Ollama daemon is up."; return 0; }
+    sleep 1
+  done
+  warn "Ollama daemon didn't come up. Start it (\`ollama serve\` or \`brew services start ollama\`), then re-run: make install"
+  return 1
+}
+
 # remove_block FILE — strip the determinator sentinel block in place, portably (awk, no GNU sed).
 remove_block() {
   local file="$1" tmp

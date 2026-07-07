@@ -12,6 +12,10 @@ if ! have ollama; then
   warn "ollama not installed; skipping model pull. Install it and re-run: make install"
   exit 0
 fi
+if ! ensure_ollama_daemon; then
+  warn "skipping model pull (daemon unavailable)"
+  exit 0
+fi
 
 need_signin=0
 for t in ${DET_TIERS:-}; do

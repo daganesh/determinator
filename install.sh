@@ -10,6 +10,21 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 export DETERMINATOR_HOME="${DETERMINATOR_HOME:-$HOME/.local/share/determinator}"
 export DETERMINATOR_CONFIG_DIR="${DETERMINATOR_CONFIG_DIR:-$HOME/.config/determinator}"
 
+cat <<'BANNER'
+
+  determinator installer
+  ----------------------
+  This will (asking before anything that installs or downloads):
+    • check deps: ollama, claude, python3, jq
+    • pull the local-tier model (several GB) and start the Ollama daemon
+    • add a small block to your shell rc (PATH + `dt` alias); backed up first
+    • register the local MCP workers with Claude Code (user scope)
+    • install the /dt-* slash commands, subagents, and permission allow-list
+  Premium tier uses your Claude subscription login by default (no API key asked).
+  Fully reversible: `make uninstall`.
+
+BANNER
+
 log "Installing determinator → $DETERMINATOR_HOME"
 
 # 1. preflight
@@ -43,4 +58,20 @@ if [ -x "$DETERMINATOR_HOME/scripts/doctor.sh" ]; then
   "$DETERMINATOR_HOME/scripts/doctor.sh" --quick || warn "doctor reported issues (see above)"
 fi
 
-log "Done. Open a new shell (or: source your rc), then run:  determinator local"
+rc="$HOME/.bashrc"; case "${SHELL:-}" in *zsh) rc="$HOME/.zshrc" ;; esac
+cat <<SUMMARY
+
+  ✓ determinator installed.
+
+  Next:
+    1. Load it:        source $rc        (or open a new terminal)
+    2. See your tiers: determinator list
+    3. Full check:     determinator doctor
+    4. Start cheap:    determinator local        (alias: dt local)
+       Start premium:  determinator reasoning
+    5. Your usage:     run  /dt-insights  inside a Claude session
+
+  Premium (reasoning) uses your Claude subscription — make sure you're logged in:
+  run \`claude\` once and complete /login if you haven't.
+
+SUMMARY
